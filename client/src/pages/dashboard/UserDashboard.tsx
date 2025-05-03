@@ -20,21 +20,42 @@ const UserDashboard = () => {
         Authorization: `Bearer ${token}`,
       });
 
+      console.log("Fetched stores:", data); // 🐛 Debug log
+
       const enrichedData = await Promise.all(
         data.map(async (store: any) => {
-          const [userRating, stats] = await Promise.all([
-            get(`/rating?storeId=${store.store_id}`, {
-              Authorization: `Bearer ${token}`,
-            }),
-            get(`/rating/stats/${store.store_id}`, {
-              Authorization: `Bearer ${token}`,
-            }),
-          ]);
+          let userRating = null;
+          let stats = { averageRating: "N/A" };
+
+          try {
+            const [userRatingRes, statsRes] = await Promise.all([
+              get(`/rating?storeId=${store.store_id}`, {
+                Authorization: `Bearer ${token}`,
+              }),
+              get(`/rating/stats/${store.store_id}`, {
+                Authorization: `Bearer ${token}`,
+              }),
+            ]);
+            userRating = userRatingRes?.[0]?.rating || null;
+            stats = statsRes || { averageRating: "N/A" };
+          } catch (ratingErr) {
+            console.warn(
+              `Rating fetch failed for store ${store.store_id}:`,
+              ratingErr
+            );
+          }
+
+          // Log individual store after enrichment
+          console.log("Enriched store:", {
+            ...store,
+            userRating,
+            overallRating: stats.averageRating,
+          });
 
           return {
             ...store,
-            userRating: userRating?.[0]?.rating || null,
-            overallRating: stats?.averageRating || "N/A",
+            userRating,
+            overallRating: stats.averageRating,
           };
         })
       );
@@ -56,8 +77,8 @@ const UserDashboard = () => {
     setFilteredStores(
       stores.filter(
         (store) =>
-          store.name.toLowerCase().includes(value) ||
-          store.address.toLowerCase().includes(value)
+          store.name?.toLowerCase().includes(value) ||
+          store.address?.toLowerCase().includes(value)
       )
     );
   };
@@ -67,27 +88,41 @@ const UserDashboard = () => {
     setShowRatingModal(true);
   };
 
-  const handleSubmitRating = async (rating: number) => {
+  const handleSubmitRating = async (rating: number, comment: string) => {
     try {
-      // Get the token from the Redux store or wherever it's stored
-      const token = useSelector((state: any) => state.auth.token);
-  
-      // Submit rating with Authorization header
-      await post("/rating", {
-        rating,
-        storeId: selectedStore.store_id,
-      }, {
-        Authorization: `Bearer ${token}`,
-      });
-  
+      // Submit the rating to the backend
+      await post(
+        "/rating",
+        {
+          rating,
+          comment,
+          storeId: selectedStore.store_id,
+        },
+        {
+          Authorization: `Bearer ${token}`,
+        }
+      );
+
+      // Update the userRating and userComment in the store state directly
+      setStores((prevStores) =>
+        prevStores.map((store) =>
+          store.store_id === selectedStore.store_id
+            ? {
+                ...store,
+                userRating: rating, // Update the user rating
+                userComment: comment, // Update the comment as well
+              }
+            : store
+        )
+      );
+
+      // Close the modal and reset selected store
       setShowRatingModal(false);
       setSelectedStore(null);
-      fetchStores(); // Refresh the store list after rating
     } catch (err) {
       console.error("Error submitting rating:", err);
     }
   };
-  
 
   return (
     <>
@@ -103,18 +138,22 @@ const UserDashboard = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredStores.map((store) => (
-          <div key={store.store_id}>
-            <StoreCard
-              store={{
-                store_id: store.store_id,
-                name: store.name,
-                address: store.address,
-                image: store.image,
-                overallRating: store.overallRating,
-                userRating: store.userRating,
-              }}
-              onRateClick={handleRateClick}
-            />
+          <div key={store.store_id || Math.random()}>
+            {store.name && store.address ? (
+              <StoreCard
+                store={{
+                  store_id: store.store_id,
+                  name: store.name,
+                  address: store.address,
+                  image: store.image,
+                  overallRating: store.overallRating,
+                  userRating: store.userRating,
+                }}
+                onRateClick={handleRateClick}
+              />
+            ) : (
+              <p className="text-red-500">Invalid store data</p>
+            )}
           </div>
         ))}
       </div>
@@ -122,6 +161,7 @@ const UserDashboard = () => {
       <RatingModal
         storeName={selectedStore?.name || ""}
         initialRating={selectedStore?.userRating || null}
+        initialComment={selectedStore?.userComment || ""}
         isOpen={showRatingModal}
         onClose={() => setShowRatingModal(false)}
         onSubmit={handleSubmitRating}

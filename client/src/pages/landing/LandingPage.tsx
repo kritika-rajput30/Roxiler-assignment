@@ -8,11 +8,12 @@ const LandingPage = () => {
           Welcome to <span className="text-primary">RateHub</span>
         </h1>
         <p className="text-gray-600 text-lg mb-6">
-          Discover top-rated stores. Rate your experiences. Administer with ease.
+          Discover top-rated stores. Rate your experiences. Administer with
+          ease.
         </p>
         <div className="flex justify-center gap-4">
           <Link to="/auth">
-            <button className="bg-primary hover:bg-primary-dark text-white font-medium px-6 py-3 rounded-full shadow">
+            <button className="bg-primary hover:bg-primary-dark text-white font-medium px-6 py-3 cursor-pointer rounded-full shadow">
               Get Started
             </button>
           </Link>

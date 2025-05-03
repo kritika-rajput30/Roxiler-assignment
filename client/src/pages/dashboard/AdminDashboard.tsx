@@ -1,11 +1,9 @@
-import React from 'react'
+import React from "react";
 
-type Props = {}
+type Props = {};
 
 const AdminDashboard = (props: Props) => {
-  return (
-    <div>AdminDashboard</div>
-  )
-}
+  return <div>AdminDashboard</div>;
+};
 
-export default AdminDashboard
+export default AdminDashboard;
