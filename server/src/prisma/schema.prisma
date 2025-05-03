@@ -1,0 +1,59 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  user
+  owner
+}
+
+model User {
+  user_id   String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  address   String
+  role      Role
+  stores    Store[]  @relation("OwnerStores")
+  ratings   Rating[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Store {
+  store_id  String   @id @default(cuid())
+  name      String
+  email     String
+  address   String
+  image     String?
+  owner     User     @relation("OwnerStores", fields: [user_id], references: [user_id])
+  user_id   String
+  ratings   Rating[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Rating {
+  rating_id String   @id @default(cuid())
+  rating    Int // Validate range (1-5) in the service/controller layer
+  comment   String?
+  user      User     @relation(fields: [user_id], references: [user_id])
+  user_id   String
+  store     Store    @relation(fields: [store_id], references: [store_id])
+  store_id  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
